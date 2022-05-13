@@ -31,6 +31,7 @@ String readDHTTemperature() {
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
+  t=t-6;
   // Read temperature as Fahrenheit (isFahrenheit = true)
   //float t = dht.readTemperature(true);
   // Check if any reads failed and exit early (to try again).
@@ -83,6 +84,11 @@ const char index_html[] PROGMEM = R"rawliteral(
 <body>
   <h2>ESP32 DHT Server</h2>
   <p>
+    <i class="fas fa-clock" style="color:#00add6;"></i> 
+    <span class="dht-labels">Date</span>
+    <span id="date">%DATE%</span>
+  </p>
+  <p>
     <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
     <span class="dht-labels">Temperature</span> 
     <span id="temperature">%TEMPERATURE%</span>
@@ -94,8 +100,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="humidity">%HUMIDITY%</span>
     <sup class="units">&percnt;</sup>
   </p>
+
 </body>
 <script>
+var today = new Date();
+var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+document.getElementById("date").innerHTML = time;
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
