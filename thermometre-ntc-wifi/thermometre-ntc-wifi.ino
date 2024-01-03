@@ -14,6 +14,10 @@ const char* ssid = "SSID";
 const char* password = "PASSWORD";
 
 
+//relay variables
+#define RELAY_PIN 16 // ESP32 pin GPIO16 connected to the IN pin of relay
+
+
 //DHT variables 
 #define DHTPIN 27     // Digital pin connected to the DHT sensor
 #define DHTTYPE    DHT11     // DHT 11
@@ -414,7 +418,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="DHT-humidity">%dht-HUMIDITY%</span>
     <sup class="units">&percnt;</sup>
   </p>
-
+  <p><a href="/input"><button class="button">ON</button></a></p>
 </body>
 <script>
 setInterval(function ( ) {
@@ -465,11 +469,21 @@ String processor(const String& var){
   }
   return String();
 }
-
+void pin_input(){
+  digitalWrite(RELAY_PIN, HIGH);
+  delay(1000);
+  digitalWrite(RELAY_PIN, LOW);
+  delay(1000);
+  }
 void setup(){
   // Serial port for debugging purposes
   Serial.begin(115200);
 
+  //relay
+  // initialize digital pin as an output.
+  pinMode(RELAY_PIN, OUTPUT);
+  
+  //NTC
    if (esp32) {
     ThermistorPin = 34;
     adcMax = 4095.0; // ADC resolution 12-bit (0-4095)
@@ -504,6 +518,9 @@ void setup(){
   server.on("/dht-humidity", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", readDHTHumidity().c_str());
   });
+  server.on("/input", HTTP_GET, [](AsyncWebServerRequest *request){
+    pin_input();
+  });
 
   // Start server
   server.begin();
@@ -512,3 +529,4 @@ void setup(){
 void loop(){
   
 }
+
