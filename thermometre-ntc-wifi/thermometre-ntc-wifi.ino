@@ -6,14 +6,22 @@
 // Import required libraries
 #include "WiFi.h"
 #include "ESPAsyncWebServer.h"
-//#include <Adafruit_Sensor.h>
-//#include <DHT.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
 
 // Replace with your network credentials
 const char* ssid = "SSID";
 const char* password = "PASSWORD";
 
 
+//DHT variables 
+#define DHTPIN 27     // Digital pin connected to the DHT sensor
+#define DHTTYPE    DHT11     // DHT 11
+
+DHT dht(DHTPIN, DHTTYPE);
+
+
+//NTC variables
 bool esp32 = true;       // change to false when using Arduino
 
 int ThermistorPin;
@@ -307,6 +315,37 @@ const float ADC_LUT[4096] PROGMEM = { 0,
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+String readDHTTemperature() {
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+  
+  // Read temperature as Fahrenheit (isFahrenheit = true)
+  //float t = dht.readTemperature(true);
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(t)) {    
+    Serial.println("Failed to read from DHT sensor!");
+    return "--";
+  }
+  else {
+    Serial.println(t);
+    return String(t);
+  }
+}
+
+String readDHTHumidity() {
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  float h = dht.readHumidity();
+  if (isnan(h)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return "--";
+  }
+  else {
+    Serial.println(h);
+    return String(h);
+  }
+}
+
 String readNTCTemperature() {
 double Vout, Rt = 0;
   double T, Tc, Tf = 0;
@@ -356,12 +395,24 @@ const char index_html[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
-  <h2>ESP32 NTC Server</h2>
+  <h2>Lantern Server</h2>
   <p>
     <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
-    <span class="dht-labels">Temperature</span> 
-    <span id="temperature">%TEMPERATURE%</span>
+    <span class="dht-labels">Ntc Temperature</span> 
+    <span id="NTC-temperature">%ntc-TEMPERATURE%</span>
     <sup class="units">&deg;C</sup>
+  </p>
+    <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">Dht Temperature</span> 
+    <span id="DHT-temperature">%dht-TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+  <p>
+    <i class="fas fa-tint" style="color:#00add6;"></i> 
+    <span class="dht-labels">Dht Humidity</span>
+    <span id="DHT-humidity">%dht-HUMIDITY%</span>
+    <sup class="units">&percnt;</sup>
   </p>
 
 </body>
@@ -370,10 +421,10 @@ setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("temperature").innerHTML = this.responseText;
+      document.getElementById("NTC-temperature").innerHTML = this.responseText;
     }
   };
-  xhttp.open("GET", "/temperature", true);
+  xhttp.open("GET", "/ntc-temperature", true);
   xhttp.send();
 }, 10000 ) ;
 
@@ -381,10 +432,20 @@ setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("humidity").innerHTML = this.responseText;
+      document.getElementById("DHT-temperature").innerHTML = this.responseText;
     }
   };
-  xhttp.open("GET", "/temperature", true);
+  xhttp.open("GET", "/dht-temperature", true);
+  xhttp.send();
+}, 10000 ) ;
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("DHT-humidity").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/dht-humidity", true);
   xhttp.send();
 }, 10000 ) ;
 </script>
@@ -393,8 +454,14 @@ setInterval(function ( ) {
 // Replaces placeholder with DHT values
 String processor(const String& var){
   //Serial.println(var);
-  if(var == "TEMPERATURE"){
+  if(var == "ntc-TEMPERATURE"){
     return readNTCTemperature();
+  }
+    else if(var == "dht-TEMPERATURE"){
+    return readDHTTemperature();
+  }
+    else if(var == "dht-HUMIDITY"){
+    return readDHTHumidity();
   }
   return String();
 }
@@ -428,10 +495,15 @@ void setup(){
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html, processor);
   });
-  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/ntc-temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", readNTCTemperature().c_str());
   });
-
+  server.on("/dht-temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readDHTTemperature().c_str());
+  });
+  server.on("/dht-humidity", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readDHTHumidity().c_str());
+  });
 
   // Start server
   server.begin();
