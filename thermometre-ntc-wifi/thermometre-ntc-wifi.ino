@@ -13,7 +13,6 @@
 const char* ssid = "SSID";
 const char* password = "PASSWORD";
 
-
 //relay variables
 #define RELAY_PIN 16 // ESP32 pin GPIO16 connected to the IN pin of relay
 
@@ -469,12 +468,17 @@ String processor(const String& var){
   }
   return String();
 }
-void pin_input(){
-  digitalWrite(RELAY_PIN, HIGH);
-  delay(1000);
-  digitalWrite(RELAY_PIN, LOW);
-  delay(1000);
-  }
+void pin_input(int iteration_number){
+  for(int i=0;i<iteration_number;i++){
+    digitalWrite(RELAY_PIN, LOW);
+    Serial.println("low");
+    delay(100);
+    digitalWrite(RELAY_PIN, HIGH);
+    Serial.println("high");
+    
+  }  
+            
+}
 void setup(){
   // Serial port for debugging purposes
   Serial.begin(115200);
@@ -482,6 +486,7 @@ void setup(){
   //relay
   // initialize digital pin as an output.
   pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH);
   
   //NTC
    if (esp32) {
@@ -519,7 +524,8 @@ void setup(){
     request->send_P(200, "text/plain", readDHTHumidity().c_str());
   });
   server.on("/input", HTTP_GET, [](AsyncWebServerRequest *request){
-    pin_input();
+    pin_input(1);
+    request->redirect("/");
   });
 
   // Start server
@@ -529,4 +535,3 @@ void setup(){
 void loop(){
   
 }
-
